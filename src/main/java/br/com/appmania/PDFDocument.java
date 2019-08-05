@@ -11,6 +11,7 @@ import org.apache.pdfbox.pdmodel.*;
 import org.apache.pdfbox.pdmodel.common.COSObjectable;
 import org.apache.pdfbox.pdmodel.encryption.AccessPermission;
 import org.apache.pdfbox.pdmodel.encryption.StandardProtectionPolicy;
+import org.apache.pdfbox.pdmodel.font.PDType0Font;
 import org.apache.pdfbox.pdmodel.interactive.action.PDActionJavaScript;
 import org.apache.pdfbox.pdmodel.interactive.action.PDAnnotationAdditionalActions;
 import org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotation;
@@ -142,4 +143,26 @@ public class PDFDocument {
 
     }
 
+    public String loadFontToForm(String fontLocation) throws IOException {
+        PDType0Font font = PDType0Font.load(document, new File(fontLocation));
+        PDAcroForm acroForm = document.getDocumentCatalog().getAcroForm();
+        COSName cos = acroForm.getDefaultResources().add(font);
+        return cos.getName();
+    }
+
+    public void fillField(String key, String value, String cosName) throws IOException {
+        PDAcroForm acroForm = document.getDocumentCatalog().getAcroForm();
+        PDField field = acroForm.getField(key);
+
+        if (field instanceof PDTextField && cosName != null) {
+            PDTextField textField = ((PDTextField) field);
+            String defaultAppearance = textField.getDefaultAppearance();
+
+            if (defaultAppearance != null && defaultAppearance.contains("/")) {
+                textField.setDefaultAppearance("/" + cosName + defaultAppearance.substring(defaultAppearance.indexOf(" ")));
+            }
+        }
+
+        field.setValue(value);
+    }
 }
