@@ -3,7 +3,6 @@ package br.com.appmania;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 
-import jdk.internal.util.xml.impl.Input;
 import org.apache.pdfbox.cos.COSArray;
 import org.apache.pdfbox.cos.COSDictionary;
 import org.apache.pdfbox.cos.COSName;
