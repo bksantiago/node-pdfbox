@@ -3,6 +3,7 @@ package br.com.appmania;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 
+import jdk.internal.util.xml.impl.Input;
 import org.apache.pdfbox.cos.COSArray;
 import org.apache.pdfbox.cos.COSDictionary;
 import org.apache.pdfbox.cos.COSName;
@@ -20,6 +21,7 @@ import org.apache.pdfbox.pdmodel.interactive.form.*;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -36,13 +38,23 @@ public class PDFDocument {
         this.document = doc;
     }
 
-    public PDFDocument(String path) throws IOException {
+    public PDFDocument(String path, boolean isUrl) throws IOException {
         this.path = path;
-        this.document = PDDocument.load(new File(path));
+        if (!isUrl) {
+            this.document = PDDocument.load(new File(path));
+        } else {
+            try (InputStream is = new URL(path).openStream()) {
+                this.document = PDDocument.load(is);
+            }
+        }
     }
 
     public static PDFDocument load(String path) throws IOException {
-        return new PDFDocument(path);
+        return new PDFDocument(path, false);
+    }
+
+    public static PDFDocument load(String path, boolean isUrl) throws IOException {
+        return new PDFDocument(path, isUrl);
     }
 
     public int pagesCount() {
