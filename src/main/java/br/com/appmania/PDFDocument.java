@@ -43,8 +43,12 @@ public class PDFDocument {
         if (!isUrl) {
             this.document = PDDocument.load(new File(path));
         } else {
-            try (InputStream is = new URL(path).openStream()) {
+            InputStream is = null;
+            try {
+                is = new URL(path).openStream();
                 this.document = PDDocument.load(is);
+            } finally {
+                is.close();
             }
         }
     }
