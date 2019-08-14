@@ -186,6 +186,11 @@ public class PDFDocument {
             }
         }
 
+        if (field instanceof PDPushButton) {
+            this.fillSignature(key, value);
+            return;
+        }
+
         field.setValue(value);
     }
 
