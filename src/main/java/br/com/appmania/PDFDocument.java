@@ -1,5 +1,7 @@
 package br.com.appmania;
 
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 
@@ -9,15 +11,21 @@ import org.apache.pdfbox.cos.COSName;
 import org.apache.pdfbox.cos.COSStream;
 import org.apache.pdfbox.pdmodel.*;
 import org.apache.pdfbox.pdmodel.common.COSObjectable;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.encryption.AccessPermission;
 import org.apache.pdfbox.pdmodel.encryption.StandardProtectionPolicy;
 import org.apache.pdfbox.pdmodel.font.PDType0Font;
+import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.apache.pdfbox.pdmodel.interactive.action.PDActionJavaScript;
 import org.apache.pdfbox.pdmodel.interactive.action.PDAnnotationAdditionalActions;
 import org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotation;
 import org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotationWidget;
+import org.apache.pdfbox.pdmodel.interactive.annotation.PDAppearanceDictionary;
+import org.apache.pdfbox.pdmodel.interactive.annotation.PDAppearanceStream;
 import org.apache.pdfbox.pdmodel.interactive.form.*;
+import sun.misc.BASE64Decoder;
 
+import javax.imageio.ImageIO;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
@@ -179,5 +187,58 @@ public class PDFDocument {
         }
 
         field.setValue(value);
+    }
+
+    public void fillSignature(String fieldId, String base64Img) throws IOException {
+        PDAcroForm acroForm = document.getDocumentCatalog().getAcroForm();
+        PDField field = acroForm.getField(fieldId);
+        if (field instanceof PDPushButton) {
+            PDPushButton btn = (PDPushButton) field;
+
+            List<PDAnnotationWidget> widgets = btn.getWidgets();
+
+            PDAnnotationWidget annotationWidget = widgets.get(0);
+
+            BASE64Decoder decoder = new BASE64Decoder();
+            byte[] imageByte = decoder.decodeBuffer(base64Img);
+            ByteArrayInputStream bis = new ByteArrayInputStream(imageByte);
+            BufferedImage bufferedImage = ImageIO.read(bis);
+            bis.close();
+
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            ImageIO.write(bufferedImage, "png", baos);
+            byte[] bytes = baos.toByteArray();
+            baos.close();
+
+            PDImageXObject pdImageXObject = PDImageXObject.createFromByteArray(document, bytes, "signature");
+            float imageScaleRatio = (float) pdImageXObject.getHeight() / (float) pdImageXObject.getWidth();
+
+            PDRectangle buttonPosition = this.getFieldArea(btn);
+            float height = buttonPosition.getHeight();
+            float width = height / imageScaleRatio;
+            float x = buttonPosition.getLowerLeftX();
+            float y = buttonPosition.getLowerLeftY();
+
+            PDAppearanceStream pdAppearanceStream = new PDAppearanceStream(document);
+            pdAppearanceStream.setResources(new PDResources());
+            try (PDPageContentStream pdPageContentStream = new PDPageContentStream(document, pdAppearanceStream)) {
+                pdPageContentStream.drawImage(pdImageXObject, x, y, width, height);
+            }
+            pdAppearanceStream.setBBox(new PDRectangle(x, y, width, height));
+
+            PDAppearanceDictionary pdAppearanceDictionary = annotationWidget.getAppearance();
+            if (pdAppearanceDictionary == null) {
+                pdAppearanceDictionary = new PDAppearanceDictionary();
+                annotationWidget.setAppearance(pdAppearanceDictionary);
+            }
+
+            pdAppearanceDictionary.setNormalAppearance(pdAppearanceStream);
+        }
+    }
+
+    private PDRectangle getFieldArea(PDField field) {
+        COSDictionary fieldDict = field.getCOSObject();
+        COSArray fieldAreaArray = (COSArray) fieldDict.getDictionaryObject(COSName.RECT);
+        return new PDRectangle(fieldAreaArray);
     }
 }
